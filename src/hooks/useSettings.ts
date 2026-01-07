@@ -12,8 +12,8 @@ const DEFAULT_SETTINGS: AppSettings = {
         enabled: true,
         color: "#3b82f6", // blue-500
         mode: "modeA",
-        thickness: "thin",
-        width: 10,
+        thickness: "normal",
+        width: 40,
     },
     timerFontSize: 3,
 };
