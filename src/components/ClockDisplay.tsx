@@ -8,10 +8,40 @@ import { TimerView } from "@/components/ClockDisplay/TimerView";
 
 // Constants & small helpers extracted for clarity and testability
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const formatDateString = (d: Date) =>
-    `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")} (${
-        DAYS[d.getDay()]
-    })`;
+const DAYS_JA = ["日", "月", "火", "水", "木", "金", "土"] as const;
+
+const formatYear = (d: Date, yearFormat: AppSettings["dateDisplay"]["yearFormat"]) => {
+    const y = d.getFullYear();
+    if (yearFormat === "reiwa") {
+        const reiwa = y - 2018; // 2019 => 1
+        if (reiwa >= 1) return `令和${String(reiwa).padStart(2, "0")}年`;
+    }
+    return `${y}`;
+};
+
+const formatDateString = (d: Date, settings: AppSettings) => {
+    const mm = (d.getMonth() + 1).toString().padStart(2, "0");
+    const dd = d.getDate().toString().padStart(2, "0");
+
+    const weekday = settings.dateDisplay.weekdayFormat === "ja" ? DAYS_JA[d.getDay()] : DAYS[d.getDay()];
+
+    const yearPart = formatYear(d, settings.dateDisplay.yearFormat);
+    const datePart =
+        settings.dateDisplay.dateFormat === "kanji" ? `${yearPart}${mm}月${dd}日` : `${d.getFullYear()}/${mm}/${dd}`;
+
+    return `${datePart} (${weekday})`;
+};
+
+const formatCurrentTime = (d: Date, showHundredths: boolean) => {
+    const hh = d.getHours().toString().padStart(2, "0");
+    const mm = d.getMinutes().toString().padStart(2, "0");
+    const ss = d.getSeconds().toString().padStart(2, "0");
+    if (!showHundredths) return `${hh}:${mm}:${ss}`;
+    const cs = Math.floor(d.getMilliseconds() / 10)
+        .toString()
+        .padStart(2, "0");
+    return `${hh}:${mm}:${ss}.${cs}`;
+};
 
 export interface ClockDisplayProps {
     now: Date;
@@ -91,9 +121,17 @@ export function ClockDisplay({ now, status, settings, onStatusClick }: ClockDisp
         <div className="flex flex-col items-center justify-center w-full p-6 space-y-8 text-center animate-in fade-in zoom-in-95 duration-500">
             <div className="w-full max-w-2xl mx-auto space-y-8">
                 {/* Date Display */}
-                <div className="text-lg sm:text-xl font-mono text-muted-foreground tracking-widest opacity-80">
-                    {formatDateString(now)}
-                </div>
+                {settings.dateDisplay.enabled && (
+                    <div className="text-lg sm:text-xl font-mono text-muted-foreground tracking-widest opacity-80">
+                        {formatDateString(now, settings)}
+                    </div>
+                )}
+
+                {settings.currentTimeDisplay.enabled && (
+                    <div className="text-lg sm:text-xl font-mono text-muted-foreground tracking-widest opacity-80">
+                        {formatCurrentTime(now, settings.currentTimeDisplay.showHundredths)}
+                    </div>
+                )}
 
                 {/* Main Content */}
                 <div className="relative z-10 py-4 w-full">

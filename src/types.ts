@@ -14,6 +14,17 @@ export interface AppSettings {
     font: "normal" | "round" | "shodo";
     course: CourseType;
     showMilliseconds: boolean;
+    tabTitleCountdownEnabled: boolean;
+    dateDisplay: {
+        enabled: boolean;
+        yearFormat: "gregorian" | "reiwa";
+        dateFormat: "slash" | "kanji";
+        weekdayFormat: "en" | "ja";
+    };
+    currentTimeDisplay: {
+        enabled: boolean;
+        showHundredths: boolean;
+    };
     progressBar: {
         enabled: boolean;
         color: string;

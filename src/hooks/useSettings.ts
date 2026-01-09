@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import type { AppSettings } from "@/types";
 
 const STORAGE_KEY = "school_timer_settings";
@@ -8,6 +8,17 @@ const DEFAULT_SETTINGS: AppSettings = {
     font: "normal",
     course: "WEEK_5",
     showMilliseconds: false,
+    tabTitleCountdownEnabled: true,
+    dateDisplay: {
+        enabled: true,
+        yearFormat: "gregorian",
+        dateFormat: "slash",
+        weekdayFormat: "en",
+    },
+    currentTimeDisplay: {
+        enabled: false,
+        showHundredths: false,
+    },
     progressBar: {
         enabled: true,
         color: "#3b82f6", // blue-500
@@ -42,25 +53,20 @@ export const useSettings = () => {
     };
 
     // Effect to apply theme. If 'system', follow prefers-color-scheme and listen for changes.
-    useEffect(() => {
-        const root = window.document.documentElement;
-        const apply = (dark: boolean) => {
+    useLayoutEffect(() => {
+        const root = document.documentElement;
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        const updateTheme = () => {
+            const isDark = settings.theme === "system" ? mq.matches : settings.theme === "dark";
+
             root.classList.remove("light", "dark");
-            root.classList.add(dark ? "dark" : "light");
+            root.classList.add(isDark ? "dark" : "light");
         };
 
+        updateTheme();
         if (settings.theme === "system") {
-            const mq = window.matchMedia("(prefers-color-scheme: dark)");
-            apply(mq.matches);
-            const handler = (e: MediaQueryListEvent) => apply(e.matches);
-            if (typeof mq.addEventListener === "function") mq.addEventListener("change", handler);
-            else mq.addListener(handler as any);
-            return () => {
-                if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", handler);
-                else mq.removeListener(handler as any);
-            };
-        } else {
-            apply(settings.theme === "dark");
+            mq.addEventListener("change", updateTheme);
+            return () => mq.removeEventListener("change", updateTheme);
         }
     }, [settings.theme]);
 

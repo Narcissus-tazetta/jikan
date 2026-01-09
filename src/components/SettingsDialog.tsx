@@ -153,6 +153,136 @@ export function SettingsDialog({ settings, updateSettings }: SettingsDialogProps
                         />
                     </div>
 
+                    {/* Tab Title */}
+                    <div className="flex items-center justify-between space-x-2">
+                        <Label htmlFor="tab-title-countdown" className="text-sm font-semibold">
+                            タブ名を残り時間にする
+                        </Label>
+                        <Switch
+                            id="tab-title-countdown"
+                            checked={settings.tabTitleCountdownEnabled}
+                            onCheckedChange={(val) => updateSettings({ tabTitleCountdownEnabled: val })}
+                        />
+                    </div>
+
+                    {/* Date Display */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between space-x-2">
+                            <Label htmlFor="date-display" className="text-sm font-semibold">
+                                日付表示（例: 2026/01/09 (Fri)）
+                            </Label>
+                            <Switch
+                                id="date-display"
+                                checked={settings.dateDisplay.enabled}
+                                onCheckedChange={(val) =>
+                                    updateSettings({ dateDisplay: { ...settings.dateDisplay, enabled: val } })
+                                }
+                            />
+                        </div>
+
+                        {settings.dateDisplay.enabled && (
+                            <div className="space-y-3 pl-0">
+                                <div className="space-y-2">
+                                    <Label className="text-sm">年号</Label>
+                                    <select
+                                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        value={settings.dateDisplay.yearFormat}
+                                        onChange={(e) =>
+                                            updateSettings({
+                                                dateDisplay: {
+                                                    ...settings.dateDisplay,
+                                                    yearFormat: e.target
+                                                        .value as AppSettings["dateDisplay"]["yearFormat"],
+                                                },
+                                            })
+                                        }
+                                    >
+                                        <option value="gregorian">西暦 </option>
+                                        <option value="reiwa">令和 </option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm">日付の表記</Label>
+                                    <select
+                                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        value={settings.dateDisplay.dateFormat}
+                                        onChange={(e) =>
+                                            updateSettings({
+                                                dateDisplay: {
+                                                    ...settings.dateDisplay,
+                                                    dateFormat: e.target
+                                                        .value as AppSettings["dateDisplay"]["dateFormat"],
+                                                },
+                                            })
+                                        }
+                                    >
+                                        <option value="slash">YYYY/MM/DD</option>
+                                        <option value="kanji">YYYY年MM月DD日</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm">曜日</Label>
+                                    <select
+                                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        value={settings.dateDisplay.weekdayFormat}
+                                        onChange={(e) =>
+                                            updateSettings({
+                                                dateDisplay: {
+                                                    ...settings.dateDisplay,
+                                                    weekdayFormat: e.target
+                                                        .value as AppSettings["dateDisplay"]["weekdayFormat"],
+                                                },
+                                            })
+                                        }
+                                    >
+                                        <option value="en">英語</option>
+                                        <option value="ja">日本語</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Current Time */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between space-x-2">
+                            <Label htmlFor="current-time" className="text-sm font-semibold">
+                                現在時刻を表示
+                            </Label>
+                            <Switch
+                                id="current-time"
+                                checked={settings.currentTimeDisplay.enabled}
+                                onCheckedChange={(val) =>
+                                    updateSettings({
+                                        currentTimeDisplay: { ...settings.currentTimeDisplay, enabled: val },
+                                    })
+                                }
+                            />
+                        </div>
+
+                        {settings.currentTimeDisplay.enabled && (
+                            <div className="flex items-center justify-between space-x-2">
+                                <Label htmlFor="current-time-hundredths" className="text-sm font-semibold">
+                                    .00 まで表示
+                                </Label>
+                                <Switch
+                                    id="current-time-hundredths"
+                                    checked={settings.currentTimeDisplay.showHundredths}
+                                    onCheckedChange={(val) =>
+                                        updateSettings({
+                                            currentTimeDisplay: {
+                                                ...settings.currentTimeDisplay,
+                                                showHundredths: val,
+                                            },
+                                        })
+                                    }
+                                />
+                            </div>
+                        )}
+                    </div>
+
                     {/* Timer Font Size */}
                     <div className="space-y-3">
                         <Label className="text-sm font-semibold">タイマー文字サイズ</Label>
