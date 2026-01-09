@@ -45,32 +45,34 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Gmail-like dark palette (approx):
+       bg #202124, surface #303134, text #e8eaed, muted #9aa0a6, border #3c4043 */
+    --background: 225 6% 13%;
+    --foreground: 220 14% 92%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 225 4% 20%;
+    --card-foreground: 220 14% 92%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 225 4% 20%;
+    --popover-foreground: 220 14% 92%;
 
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 225 4% 22%;
+    --secondary-foreground: 220 14% 92%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 225 4% 22%;
+    --muted-foreground: 210 6% 63%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 225 4% 22%;
+    --accent-foreground: 220 14% 92%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 220 14% 92%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 210 5% 25%;
+    --input: 210 5% 25%;
     --ring: 224.3 76.3% 48%;
 
     /* Charts */
@@ -95,13 +97,8 @@
 
 /* Glassmorphism helpers */
 .glass {
-  background: rgba(255, 255, 255, 0.25);
+  background: hsl(var(--background) / 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.dark .glass {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid hsl(var(--border) / 0.35);
 }
