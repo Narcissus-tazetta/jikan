@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Settings, Sliders, Sun, Moon, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import type { AppSettings, CourseType } from "@/types";
+import { putBackgroundBlob, getBackgroundBlob, deleteBackgroundBlob } from "@/lib/background-idb";
 
 interface SettingsDialogProps {
     settings: AppSettings;
@@ -27,6 +28,159 @@ export function SettingsDialog({ settings, updateSettings }: SettingsDialogProps
     // Local text state for color input so users can freely type before committing
     const [colorText, setColorText] = useState(settings.progressBar.color);
     useEffect(() => setColorText(settings.progressBar.color), [settings.progressBar.color]);
+
+    const [bgUrlText, setBgUrlText] = useState(settings.backgroundUrl);
+    useEffect(() => setBgUrlText(settings.backgroundUrl), [settings.backgroundUrl]);
+
+    const [bgPreviewUrl, setBgPreviewUrl] = useState<string | null>(null);
+    const [bgError, setBgError] = useState<string | null>(null);
+    const [selectedFilename, setSelectedFilename] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const isAllowedImageUrl = (v: string) => {
+        const raw = v.trim();
+        if (!raw) return false;
+        if (raw.startsWith("data:image/")) return true;
+        try {
+            const url = new URL(raw);
+            return url.protocol === "http:" || url.protocol === "https:";
+        } catch {
+            return false;
+        }
+    };
+
+    const applyBackgroundUrl = () => {
+        const raw = bgUrlText.trim();
+        if (!raw) {
+            setBgError(null);
+            updateSettings({ backgroundUrl: "" });
+            return;
+        }
+        if (!isAllowedImageUrl(raw)) {
+            setBgError("URLが無効です（http(s) または data:image/* のみ）");
+            return;
+        }
+        setBgError(null);
+        updateSettings({ backgroundUrl: raw, backgroundSource: "url" });
+    };
+
+    const handleBackgroundFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            setBgError("画像ファイルを選択してください");
+            return;
+        }
+
+        // 10MB: Safari等のクォータで事故りにくい上限
+        const maxBytes = 10 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            setBgError("画像が大きすぎます（最大10MB）");
+            return;
+        }
+
+        setBgError(null);
+
+        const uuid =
+            typeof crypto !== "undefined"
+                ? (crypto as Crypto & { randomUUID?: () => string }).randomUUID?.() ??
+                  Math.random().toString(16).slice(2)
+                : Math.random().toString(16).slice(2);
+        const newKey = `bg-${Date.now()}-${uuid}`;
+
+        try {
+            if (settings.backgroundIdbKey) {
+                // best-effort cleanup to avoid orphaned blobs
+                await deleteBackgroundBlob(settings.backgroundIdbKey);
+            }
+            await putBackgroundBlob(newKey, file);
+
+            updateSettings({
+                backgroundEnabled: true,
+                backgroundSource: "file",
+                backgroundIdbKey: newKey,
+            });
+        } catch (err) {
+            console.error(err);
+            setBgError("画像の保存に失敗しました（ブラウザの保存容量が不足している可能性があります）");
+        }
+    };
+
+    const handleBackgroundDelete = async () => {
+        setBgError(null);
+        try {
+            if (settings.backgroundIdbKey) {
+                await deleteBackgroundBlob(settings.backgroundIdbKey);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            updateSettings({
+                backgroundEnabled: false,
+                backgroundUrl: "",
+                backgroundIdbKey: null,
+                backgroundSource: "url",
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let disposed = false;
+        let objectUrl: string | null = null;
+
+        const run = async () => {
+            setBgError(null);
+
+            if (!settings.backgroundEnabled) {
+                setBgPreviewUrl(null);
+                return;
+            }
+
+            if (settings.backgroundSource === "url") {
+                const raw = settings.backgroundUrl.trim();
+                setBgPreviewUrl(raw && isAllowedImageUrl(raw) ? raw : null);
+                return;
+            }
+
+            const key = settings.backgroundIdbKey;
+            if (!key) {
+                setBgPreviewUrl(null);
+                return;
+            }
+
+            try {
+                const blob = await getBackgroundBlob(key);
+                if (disposed) return;
+                if (!blob) {
+                    setBgPreviewUrl(null);
+                    return;
+                }
+                objectUrl = URL.createObjectURL(blob);
+                setBgPreviewUrl(objectUrl);
+            } catch (err) {
+                console.error(err);
+                setBgPreviewUrl(null);
+                setBgError("背景画像の読み込みに失敗しました");
+            }
+        };
+
+        run();
+
+        return () => {
+            disposed = true;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [
+        isOpen,
+        settings.backgroundEnabled,
+        settings.backgroundSource,
+        settings.backgroundUrl,
+        settings.backgroundIdbKey,
+    ]);
 
     const normalizeColor = (v: string) => {
         const raw = v.trim();
@@ -301,6 +455,137 @@ export function SettingsDialog({ settings, updateSettings }: SettingsDialogProps
                                 </Button>
                             ))}
                         </div>
+                    </div>
+
+                    {/* Background */}
+                    <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold">背景画像</Label>
+                            <Switch
+                                checked={settings.backgroundEnabled}
+                                onCheckedChange={(val) => updateSettings({ backgroundEnabled: val })}
+                            />
+                        </div>
+
+                        {settings.backgroundEnabled && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm">背景をぼかす</Label>
+                                    <Switch
+                                        checked={settings.backgroundBlurEnabled}
+                                        onCheckedChange={(val) => updateSettings({ backgroundBlurEnabled: val })}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>取得元</Label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button
+                                            variant={settings.backgroundSource === "url" ? "secondary" : "ghost"}
+                                            size="sm"
+                                            onClick={() => updateSettings({ backgroundSource: "url" })}
+                                            className="text-xs justify-start"
+                                        >
+                                            公開URL
+                                        </Button>
+                                        <Button
+                                            variant={settings.backgroundSource === "file" ? "secondary" : "ghost"}
+                                            size="sm"
+                                            onClick={() => updateSettings({ backgroundSource: "file" })}
+                                            className="text-xs justify-start"
+                                        >
+                                            PCから選択
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {settings.backgroundSource === "url" ? (
+                                    <div className="space-y-2">
+                                        <Label>画像URL</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="url"
+                                                placeholder="https://example.com/bg.jpg"
+                                                value={bgUrlText}
+                                                onChange={(e) => setBgUrlText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") applyBackgroundUrl();
+                                                }}
+                                            />
+                                            <Button type="button" variant="secondary" onClick={applyBackgroundUrl}>
+                                                適用
+                                            </Button>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            http(s) または data:image/* を指定できます。
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <Label>画像ファイル</Label>
+
+                                        <div className="relative">
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    handleBackgroundFilePick(e);
+                                                    const f = e.target.files?.[0];
+                                                    setSelectedFilename(f ? f.name : null);
+                                                }}
+                                                className="sr-only"
+                                                aria-label="背景画像ファイル"
+                                            />
+
+                                            <div className="flex items-center justify-between h-10 rounded-md border border-input bg-background px-3">
+                                                <div className="flex-1 flex items-center justify-center">
+                                                    <button
+                                                        type="button"
+                                                        className="px-4 py-2 rounded-md bg-muted/70 text-foreground hover:bg-muted/80"
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                    >
+                                                        ファイルを選択
+                                                    </button>
+                                                </div>
+                                                <div className="pl-4">
+                                                    <span className="text-sm opacity-70">
+                                                        {selectedFilename ?? "選択されていません"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <p className="text-xs text-muted-foreground mt-2">
+                                                ローカル画像はブラウザ内に保存されます（最大10MB）。
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {bgError && <p className="text-xs text-destructive">{bgError}</p>}
+
+                                {bgPreviewUrl && (
+                                    <div className="space-y-2">
+                                        <Label>プレビュー</Label>
+                                        <div
+                                            className="h-28 w-full rounded-md border border-border/70 bg-muted/40"
+                                            style={{
+                                                backgroundImage: `url(${JSON.stringify(bgPreviewUrl)})`,
+                                                backgroundSize: "cover",
+                                                backgroundPosition: "center",
+                                                backgroundRepeat: "no-repeat",
+                                            }}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end">
+                                    <Button type="button" variant="destructive" onClick={handleBackgroundDelete}>
+                                        背景を削除
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Progress Bar */}

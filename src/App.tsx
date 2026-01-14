@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { useSettings } from "@/hooks/useSettings";
 import { useTimeManager } from "@/hooks/useTimeManager";
 import { getCurrentStatus } from "@/lib/school-logic";
+import { getBackgroundBlob } from "@/lib/background-idb";
 import { ClockDisplay } from "@/components/ClockDisplay";
 import { ScheduleView } from "@/components/ScheduleView";
 import { SettingsDialog } from "@/components/SettingsDialog";
@@ -11,6 +12,65 @@ function App() {
     const { settings, updateSettings } = useSettings();
     const { now, status } = useTimeManager(settings.course);
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+
+    const [resolvedBackgroundUrl, setResolvedBackgroundUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        let disposed = false;
+        let createdObjectUrl: string | null = null;
+
+        const isAllowedImageUrl = (v: string) => {
+            const raw = v.trim();
+            if (!raw) return false;
+            if (raw.startsWith("data:image/")) return true;
+            try {
+                const url = new URL(raw);
+                return url.protocol === "http:" || url.protocol === "https:";
+            } catch {
+                return false;
+            }
+        };
+
+        const run = async () => {
+            if (!settings.backgroundEnabled) {
+                setResolvedBackgroundUrl(null);
+                return;
+            }
+
+            if (settings.backgroundSource === "url") {
+                const raw = settings.backgroundUrl.trim();
+                setResolvedBackgroundUrl(raw && isAllowedImageUrl(raw) ? raw : null);
+                return;
+            }
+
+            const key = settings.backgroundIdbKey;
+            if (!key) {
+                setResolvedBackgroundUrl(null);
+                return;
+            }
+
+            try {
+                const blob = await getBackgroundBlob(key);
+                if (disposed) return;
+                if (!blob) {
+                    setResolvedBackgroundUrl(null);
+                    return;
+                }
+                createdObjectUrl = URL.createObjectURL(blob);
+                setResolvedBackgroundUrl(createdObjectUrl);
+            } catch (err) {
+                console.error(err);
+                setResolvedBackgroundUrl(null);
+            }
+        };
+
+        run();
+
+        return () => {
+            disposed = true;
+            if (createdObjectUrl) URL.revokeObjectURL(createdObjectUrl);
+        };
+    }, [settings.backgroundEnabled, settings.backgroundSource, settings.backgroundUrl, settings.backgroundIdbKey]);
 
     useEffect(() => {
         const original = document.title;
@@ -52,8 +112,29 @@ function App() {
 
     return (
         <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center bg-background text-foreground selection:bg-primary/20">
-            {/* Minimal Background */}
-            <div className="absolute inset-0 z-0 bg-background" />
+            {/* Background Image (optional) */}
+            {resolvedBackgroundUrl && (
+                <div
+                    className="absolute inset-0 z-0"
+                    style={{
+                        backgroundImage: `url(${JSON.stringify(resolvedBackgroundUrl)})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                    }}
+                />
+            )}
+
+            {/* Minimal Background overlay (keeps readability) */}
+            <div
+                className={
+                    resolvedBackgroundUrl
+                        ? settings.backgroundBlurEnabled
+                            ? "absolute inset-0 z-0 bg-gradient-to-b from-background/90 via-background/80 to-background/95 backdrop-blur-md"
+                            : "absolute inset-0 z-0 bg-gradient-to-b from-background/90 via-background/80 to-background/95"
+                        : "absolute inset-0 z-0 bg-background"
+                }
+            />
 
             {/* Main Content */}
             <main className="relative z-10 w-full px-4 flex-1 flex flex-col items-center justify-center">

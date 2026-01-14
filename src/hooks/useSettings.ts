@@ -9,6 +9,11 @@ const DEFAULT_SETTINGS: AppSettings = {
     course: "WEEK_5",
     showMilliseconds: false,
     tabTitleCountdownEnabled: true,
+    backgroundEnabled: false,
+    backgroundSource: "url",
+    backgroundUrl: "",
+    backgroundIdbKey: null,
+    backgroundBlurEnabled: true,
     dateDisplay: {
         enabled: true,
         yearFormat: "gregorian",
@@ -29,11 +34,34 @@ const DEFAULT_SETTINGS: AppSettings = {
     timerFontSize: 3,
 };
 
+const hydrateSettings = (raw: unknown): AppSettings => {
+    if (!raw || typeof raw !== "object") return DEFAULT_SETTINGS;
+
+    const saved = raw as Partial<AppSettings>;
+
+    return {
+        ...DEFAULT_SETTINGS,
+        ...saved,
+        dateDisplay: {
+            ...DEFAULT_SETTINGS.dateDisplay,
+            ...(saved.dateDisplay ?? {}),
+        },
+        currentTimeDisplay: {
+            ...DEFAULT_SETTINGS.currentTimeDisplay,
+            ...(saved.currentTimeDisplay ?? {}),
+        },
+        progressBar: {
+            ...DEFAULT_SETTINGS.progressBar,
+            ...(saved.progressBar ?? {}),
+        },
+    };
+};
+
 export const useSettings = () => {
     const [settings, setSettings] = useState<AppSettings>(() => {
         try {
             const item = window.localStorage.getItem(STORAGE_KEY);
-            return item ? { ...DEFAULT_SETTINGS, ...JSON.parse(item) } : DEFAULT_SETTINGS;
+            return item ? hydrateSettings(JSON.parse(item)) : DEFAULT_SETTINGS;
         } catch (error) {
             console.error(error);
             return DEFAULT_SETTINGS;

@@ -15,6 +15,11 @@ export interface AppSettings {
     course: CourseType;
     showMilliseconds: boolean;
     tabTitleCountdownEnabled: boolean;
+    backgroundEnabled: boolean;
+    backgroundSource: "url" | "file";
+    backgroundUrl: string;
+    backgroundIdbKey: string | null;
+    backgroundBlurEnabled: boolean;
     dateDisplay: {
         enabled: boolean;
         yearFormat: "gregorian" | "reiwa";
